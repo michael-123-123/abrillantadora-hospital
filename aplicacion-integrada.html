@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Abrillantadora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        @media (max-width: 640px) {
+            .modal-content {
+                margin: 20% auto;
+                width: 95%;
+            }
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .badge {
+            @apply px-2 py-1 text-xs font-semibold rounded-full;
+        }
+        .badge-pending {
+            @apply bg-yellow-200 text-yellow-800;
+        }
+        .badge-approved {
+            @apply bg-blue-200 text-blue-800;
+        }
+        .badge-in-use {
+            @apply bg-green-200 text-green-800;
+        }
+        .badge-returned {
+            @apply bg-purple-200 text-purple-800;
+        }
+        .badge-rejected {
+            @apply bg-red-200 text-red-800;
+        }
+        .badge-completed {
+            @apply bg-gray-200 text-gray-800;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3B82F6;
+            animation: spin 1s ease infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <nav class="bg-blue-600 p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center">
+                <img src="LOGO HPL.png" alt="Logo HPL" class="h-10 mr-3">
+                <h1 class="text-2xl font-bold text-white">Sistema de Gestión de Abrillantadora</h1>
+            </div>
+            <div class="flex space-x-2">
+                <button id="navSolicitar" class="text-white px-3 py-1 rounded hover:bg-blue-700 hidden">
+                    <i class="fas fa-file-alt mr-1"></i>Solicitar
+                </button>
+                <button id="navMisSolicitudes" class="text-white px-3 py-1 rounded hover:bg-blue-700 hidden">
+                    <i class="fas fa-list mr-1"></i>Mis Solicitudes
+                </button>
+                <button id="navAdmin" class="text-white px-3 py-1 rounded hover:bg-blue-700 hidden">
+                    <i class="fas fa-cog mr-1"></i>Administración
+                </button>
+                <button id="logoutButton" class="text-white px-3 py-1 rounded bg-red-500 hover:bg-red-700 hidden">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Cerrar Sesión
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <div id="loadingIndicator" class="loading-spinner hidden"></div>
+        <div id="notificationArea" class="mb-4"></div>
+
+        <!-- Banner principal con logo grande -->
+        <div id="mainBanner" class="text-center mb-8 mt-4">
+            <img src="LOGO HPL.png" alt="Logo HPL" class="h-20 mx-auto mb-4">
+            <h2 class="text-3xl font-bold text-gray-800">Sistema de Gestión de Abrillantadora</h2>
+            <p class="text-lg text-gray-600">Solicitud, recepción y devolución de equipos</p>
+        </div>
+
+        <!-- Sección de autenticación -->
+        <section id="authSection" class="max-w-md mx-auto bg-white shadow-xl rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-center text-gray-700 mb-6">Acceso al Sistema</h2>
+            
+            <div id="authFormContainer">
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label for="loginEmail" class="block text-sm font-medium text-gray-700">Correo Electrónico:</label>
+                        <input type="email" id="loginEmail" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="loginPassword" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+                        <input type="password" id="loginPassword" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Iniciar Sesión
+                    </button>
+                </form>
+                <p class="text-center mt-4 text-sm text-gray-600">
+                    ¿No tienes cuenta? <a href="#" id="showRegisterLink" class="text-blue-600 hover:underline">Regístrate aquí</a>
+                </p>
+            </div>
+
+            <div id="registerFormContainer" class="hidden space-y-4">
+                <h3 class="text-xl font-semibold text-center text-gray-700 mb-4">Registro de Usuario</h3>
+                <form id="registerForm" class="space-y-4">
+                    <div>
+                        <label for="registerName" class="block text-sm font-medium text-gray-700">Nombre Completo:</label>
+                        <input type="text" id="registerName" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="registerDepartment" class="block text-sm font-medium text-gray-700">Departamento:</label>
+                        <input type="text" id="registerDepartment" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="registerEmail" class="block text-sm font-medium text-gray-700">Correo Electrónico:</label>
+                        <input type="email" id="registerEmail" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="registerPassword" class="block text-sm font-medium text-gray-700">Contraseña:</label>
+                        <input type="password" id="registerPassword" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" minlength="6">
+                    </div>
+                    <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-user-plus mr-2"></i>Registrarse
+                    </button>
+                </form>
+                <p class="text-center mt-4 text-sm text-gray-600">
+                    ¿Ya tienes cuenta? <a href="#" id="showLoginLink" class="text-blue-600 hover:underline">Inicia sesión aquí</a>
+                </p>
+            </div>
+        </section>
+
+        <!-- Sección de usuario -->
+        <section id="userSection" class="hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Panel de Usuario: <span id="userNameDisplay" class="text-blue-600"></span></h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 dashboard-grid">
+                <!-- Formulario de solicitud -->
+                <div id="solicitudesForm" class="bg-white shadow-xl rounded-lg p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-4">
+                        <i class="fas fa-clipboard-list mr-2 text-blue-500"></i>Solicitar Abrillantadora
+                    </h3>
+                    <form id="requestForm" class="space-y-4">
+                        <div>
+                            <label for="requestDate" class="block text-sm font-medium text-gray-700">Fecha Deseada:</label>
+                            <input type="date" id="requestDate" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="startTime" class="block text-sm font-medium text-gray-700">Hora de Inicio:</label>
+                            <input type="time" id="startTime" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="endTime" class="block text-sm font-medium text-gray-700">Hora de Fin:</label>
+                            <input type="time" id="endTime" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="requestReason" class="block text-sm font-medium text-gray-700">Motivo de Uso:</label>
+                            <textarea id="requestReason" rows="3" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-paper-plane mr-2"></i>Enviar Solicitud
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Listado de solicitudes del usuario -->
+                <div class="bg-white shadow-xl rounded-lg p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-4">
+                        <i class="fas fa-list-alt mr-2 text-blue-500"></i>Mis Solicitudes
+                    </h3>
+                    <div id="userRequestsContainer" class="space-y-4">
+                        <p class="text-gray-500">No tienes solicitudes activas.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de administración -->
+        <section id="adminSection" class="hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-cogs mr-2 text-blue-500"></i>Panel de Administración
+            </h2>
+            <div class="bg-white shadow-xl rounded-lg p-6 mb-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">Todas las Solicitudes</h3>
+                <div id="adminRequestsContainer" class="space-y-4">
+                    <p class="text-gray-500">No hay solicitudes para revisar.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal para subir imágenes -->
+        <div id="imageUploadModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" id="closeModalButton">&times;</span>
+                <h3 id="modalTitle" class="text-xl font-semibold mb-4">Subir Foto</h3>
+                <form id="imageUploadForm">
+                    <input type="hidden" id="uploadRequestId">
+                    <input type="hidden" id="uploadType">
+                    <div>
+                        <label for="imageFile" class="block text-sm font-medium text-gray-700">Seleccionar Archivo:</label>
+                        <input type="file" id="imageFile" accept="image/*" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    <div>
+                        <label for="commentText" class="block text-sm font-medium text-gray-700 mt-4">Comentario:</label>
+                        <textarea id="commentText" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                    </div>
+                    <img id="imagePreview" src="#" alt="Vista previa" class="mt-4 max-h-60 w-auto rounded hidden"/>
+                    <button type="submit" class="mt-6 w-full py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-upload mr-2"></i>Subir Foto
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal para ver imágenes -->
+        <div id="imageViewModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" id="closeImageViewModalButton">&times;</span>
+                <h3 id="imageViewModalTitle" class="text-xl font-semibold mb-4">Ver Foto</h3>
+                <img id="imageViewModalImage" src="#" alt="Foto de la solicitud" class="max-h-96 w-auto rounded mx-auto"/>
+                <p id="imageViewModalComment" class="mt-4 text-gray-700 text-sm italic"></p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white p-4 mt-8">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2025 Sistema de Gestión de Abrillantadora | HPL</p>
+        </div>
+    </footer>
+
+    <script type="module">
+        // Firebase SDK imports (version 9+)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            onAuthStateChanged, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+        import { 
+            getDatabase, 
+            ref, 
+            set, 
+            get, 
+            child, 
+            onValue, 
+            push, 
+            update,
+            serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+        import { 
+            getStorage, 
+            ref as storageRef, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
+
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCxw3HqNO9U2p6EvoDHf5H7Eyw551YsERY",
+            authDomain: "registro-de-abrillantadora.firebaseapp.com",
+            databaseURL: "https://registro-de-abrillantadora-default-rtdb.firebaseio.com/",
+            projectId: "registro-de-abrillantadora",
+            storageBucket: "registro-de-abrillantadora.firebasestorage.app",
+            messagingSenderId: "146526330660",
+            appId: "1:146526330660:web:6abdb15979773487afddb1",
+            measurementId: "G-GT11B3PSR0"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const storage = getStorage(app);
+
+        // Variables para detectar administradores
+        let currentUser = null;
+        let isAdmin = false;
+
+        // DOM Elements
+        const authSection = document.getElementById('authSection');
+        const userSection = document.getElementById('userSection');
+        const adminSection = document.getElementById('adminSection');
+        const mainBanner = document.getElementById('mainBanner');
+        
+        const logoutButton = document.getElementById('logoutButton');
+        const navSolicitar = document.getElementById('navSolicitar');
+        const navMisSolicitudes = document.getElementById('navMisSolicitudes');
+        const navAdmin = document.getElementById('navAdmin');
+        
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const showRegisterLink = document.getElementById('showRegisterLink');
+        const showLoginLink = document.getElementById('showLoginLink');
+        const authFormContainer = document.getElementById('authFormContainer');
+        const registerFormContainer = document.getElementById('registerFormContainer');
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        
+        const requestForm = document.getElementById('requestForm');
+        const userRequestsContainer = document.getElementById('userRequestsContainer');
+        const adminRequestsContainer = document.getElementById('adminRequestsContainer');
+
+        const imageUploadModal = document.getElementById('imageUploadModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const imageUploadForm = document.getElementById('imageUploadForm');
+        const uploadRequestIdInput = document.getElementById('uploadRequestId');
+        const uploadTypeInput = document.getElementById('uploadType');
+        const imageFileInput = document.getElementById('imageFile');
+        const commentTextInput = document.getElementById('commentText');
+        const imagePreview = document.getElementById('imagePreview');
+        const modalTitle = document.getElementById('modalTitle');
+
+        const imageViewModal = document.getElementById('imageViewModal');
+        const closeImageViewModalButton = document.getElementById('closeImageViewModalButton');
+        const imageViewModalTitle = document.getElementById('imageViewModalTitle');
+        const imageViewModalImage = document.getElementById('imageViewModalImage');
+        const imageViewModalComment = document.getElementById('imageViewModalComment');
+        
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const notificationArea = document.getElementById('notificationArea');
+
+        // Utility Functions
+        function showLoading() {
+            loadingIndicator.classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            loadingIndicator.classList.add('hidden');
+        }
+
+        function showNotification(message, type = 'info') {
+            const bgColor = type === 'success' ? 'bg-green-500' : 
+                          type === 'error' ? 'bg-red-500' : 
+                          type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
+            
+            notificationArea.innerHTML = `
+                <div class="${bgColor} text-white p-3 rounded-md shadow animate-bounce">
+                    <div class="flex items-center">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : 
+                                        type === 'error' ? 'exclamation-circle' : 
+                                        type === 'warning' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i>
+                        <span>${message}</span>
+                    </div>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                notificationArea.innerHTML = '';
+            }, 5000);
+        }
+
+        function showSection(section) {
+            // Ocultar todas las secciones
+            authSection.classList.add('hidden');
+            userSection.classList.add('hidden');
+            adminSection.classList.add('hidden');
+            mainBanner.classList.add('hidden');
+            
+            // Mostrar la sección solicitada
+            if (section === 'auth') {
+                authSection.classList.remove('hidden');
+                mainBanner.classList.remove('hidden');
+            } else if (section === 'user') {
+                userSection.classList.remove('hidden');
+            } else if (section === 'admin') {
+                adminSection.classList.remove('hidden');
+            }
+        }
+
+        // Authentication Logic
+        onAuthStateChanged(auth, async (user) => {
+            showLoading();
+            if (user) {
+                currentUser = user;
+                // Usuario autenticado
+                logoutButton.classList.remove('hidden');
+                
+                // Obtener datos del usuario
+                try {
+                    const userRef = ref(db, `users/${user.uid}`);
+                    const snapshot = await get(userRef);
+                    
+                    if (snapshot.exists()) {
+                        const userData = snapshot.val();
+                        userNameDisplay.textContent = userData.name || user.email;
+                        isAdmin = userData.isAdmin === true;
+                    } else {
+                        userNameDisplay.textContent = user.email;
+                        isAdmin = false;
+                        
+                        // Crear registro de usuario si no existe
+                        await set(ref(db, `users/${user.uid}`), {
+                            email: user.email,
+                            name: user.displayName || user.email,
+                            uid: user.uid,
+                            isAdmin: false,
+                            createdAt: serverTimestamp()
+                        });
+                    }
+                    
+                    // Mostrar los elementos de navegación según el rol
+                    navSolicitar.classList.remove('hidden');
+                    navMisSolicitudes.classList.remove('hidden');
+                    
+                    if (isAdmin) {
+                        navAdmin.classList.remove('hidden');
+                        showSection('admin');
+                        loadAdminRequests();
+                    } else {
+                        navAdmin.classList.add('hidden');
+                        showSection('user');
+                        loadUserRequests(user.uid);
+                    }
+                } catch (error) {
+                    console.error("Error al cargar datos del usuario:", error);
+                    showNotification("Error al cargar datos del usuario", "error");
+                }
+            } else {
+                // Usuario no autenticado
+                currentUser = null;
+                isAdmin = false;
+                userNameDisplay.textContent = '';
+                
+                // Ocultar botones de navegación
+                logoutButton.classList.add('hidden');
+                navSolicitar.classList.add('hidden');
+                navMisSolicitudes.classList.add('hidden');
+                navAdmin.classList.add('hidden');
+                
+                showSection('auth');
+            }
+            hideLoading();
+        });
+
+        // Event Listeners
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            showLoading();
+            
+            const email = loginForm.loginEmail.value;
+            const password = loginForm.loginPassword.value;
+            
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    showNotification('Sesión iniciada correctamente', 'success');
+                    loginForm.reset();
+                })
+                .catch((error) => {
+                    console.error("Error al iniciar sesión:", error);
+                    showNotification('Error al iniciar sesión: ' + error.message, 'error');
+                })
+                .finally(hideLoading);
+        });
+
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            showLoading();
+            
+            const name = registerForm.registerName.value;
+            const department = registerForm.registerDepartment.value;
+            const email = registerForm.registerEmail.value;
+            const password = registerForm.registerPassword.value;
+            
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    return set(ref(db, 'users/' + user.uid), {
+                        name: name,
+                        department: department,
+                        email: email,
+                        uid: user.uid,
+                        isAdmin: false,
+                        createdAt: serverTimestamp()
+                    });
+                })
+                .then(() => {
+                    showNotification('Usuario registrado correctamente', 'success');
+                    registerForm.reset();
+                    showLoginView();
+                })
+                .catch((error) => {
+                    console.error("Error al registrar:", error);
+                    showNotification('Error al registrar: ' + error.message, 'error');
+                })
+                .finally(hideLoading);
+        });
+
+        logoutButton.addEventListener('click', () => {
+            showLoading();
+            signOut(auth)
+                .then(() => {
+                    showNotification('Sesión cerrada correctamente', 'info');
+                })
+                .catch((error) => {
+                    console.error("Error al cerrar sesión:", error);
+                    showNotification('Error al cerrar sesión', 'error');
+                })
+                .finally(hideLoading);
+        });
+
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            authFormContainer.classList.add('hidden');
+            registerFormContainer.classList.remove('hidden');
+        });
+        
+        function showLoginView() {
+            authFormContainer.classList.remove('hidden');
+            registerFormContainer.classList.add('hidden');
+        }
+
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showLoginView();
+        });
+
+        // Navegación entre pestañas
+        navSolicitar.addEventListener('click', () => {
+            if (userSection.classList.contains('hidden')) {
+                showSection('user');
+                document.getElementById('solicitudesForm').scrollIntoView({behavior: 'smooth'});
+            } else {
+                document.getElementById('solicitudesForm').scrollIntoView({behavior: 'smooth'});
+            }
+        });
+        
+        navMisSolicitudes.addEventListener('click', () => {
+            if (userSection.classList.contains('hidden')) {
+                showSection('user');
+                loadUserRequests(currentUser.uid);
+                document.getElementById('userRequestsContainer').scrollIntoView({behavior: 'smooth'});
+            } else {
+                loadUserRequests(currentUser.uid);
+                document.getElementById('userRequestsContainer').scrollIntoView({behavior: 'smooth'});
+            }
+        });
+        
+        navAdmin.addEventListener('click', () => {
+            if (isAdmin) {
+                showSection('admin');
+                loadAdminRequests();
+            }
+        });
+
+        // Request Logic
+        requestForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            showLoading();
+            
+            if (!currentUser) {
+                showNotification('Debes iniciar sesión para realizar una solicitud', 'warning');
+                hideLoading();
+                return;
+            }
+
+            const requestDate = requestForm.requestDate.value;
+            const startTime = requestForm.startTime.value;
+            const endTime = requestForm.endTime.value;
+            const requestReason = requestForm.requestReason.value;
+
+            // Verificar la disponibilidad antes de enviar la solicitud
+            isDateTimeAvailable(requestDate, startTime, endTime)
+                .then(isAvailable => {
+                    if (!isAvailable) {
+                        showNotification('La abrillantadora ya está reservada para ese horario. Por favor, elige otro.', 'warning');
+                        hideLoading();
+                        return Promise.reject(new Error('Horario no disponible'));
+                    }
+                    
+                    // Obtener datos del usuario
+                    return get(ref(db, `users/${currentUser.uid}`));
+                })
+                .then((userSnapshot) => {
+                    const userData = userSnapshot.exists() ? userSnapshot.val() : { email: currentUser.email };
+                    
+                    // Crear nueva solicitud
+                    const newRequestRef = push(ref(db, 'requests'));
+                    return set(newRequestRef, {
+                        userId: currentUser.uid,
+                        userName: userData.name || currentUser.email,
+                        userEmail: currentUser.email,
+                        department: userData.department || 'No especificado',
+                        requestDate: requestDate,
+                        startTime: startTime,
+                        endTime: endTime,
+                        requestReason: requestReason,
+                        status: 'pending',
+                        submittedAt: serverTimestamp(),
+                        pickupPhotoUrl: null,
+                        pickupComment: null,
+                        returnPhotoUrl: null,
+                        returnComment: null
+                    });
+                })
+                .then(() => {
+                    showNotification('Solicitud enviada correctamente', 'success');
+                    requestForm.reset();
+                    loadUserRequests(currentUser.uid);
+                    document.getElementById('userRequestsContainer').scrollIntoView({behavior: 'smooth'});
+                })
+                .catch((error) => {
+                    if (error.message !== 'Horario no disponible') {
+                        console.error("Error al enviar solicitud:", error);
+                        showNotification('Error al enviar solicitud: ' + error.message, 'error');
+                    }
+                })
+                .finally(() => {
+                    if (error.message !== 'Horario no disponible') {
+                        hideLoading();
+                    }
+                });
+        });
+
+        // Verificar disponibilidad de la abrillantadora
+        async function isDateTimeAvailable(date, startTime, endTime) {
+            try {
+                const requestsRef = ref(db, 'requests');
+                const snapshot = await get(requestsRef);
+                
+                if (!snapshot.exists()) {
+                    return true; // No hay solicitudes, está disponible
+                }
+                
+                const requestStarts = new Date(`${date}T${startTime}`);
+                const requestEnds = new Date(`${date}T${endTime}`);
+                
+                let isAvailable = true;
+                
+                snapshot.forEach((childSnapshot) => {
+                    const request = childSnapshot.val();
+                    
+                    // Solo revisar solicitudes aprobadas o en uso
+                    if (request.status !== 'approved' && request.status !== 'in_use') {
+                        return;
+                    }
+                    
+                    if (request.requestDate === date) {
+                        const existingStarts = new Date(`${request.requestDate}T${request.startTime}`);
+                        const existingEnds = new Date(`${request.requestDate}T${request.endTime}`);
+                        
+                        // Verificar si hay solapamiento
+                        if (
+                            (requestStarts >= existingStarts && requestStarts < existingEnds) ||
+                            (requestEnds > existingStarts && requestEnds <= existingEnds) ||
+                            (requestStarts <= existingStarts && requestEnds >= existingEnds)
+                        ) {
+                            isAvailable = false;
+                        }
+                    }
+                });
+                
+                return isAvailable;
+            } catch (error) {
+                console.error("Error al verificar disponibilidad:", error);
+                return false;
+            }
+        }
+
+        function loadUserRequests(userId) {
+            userRequestsContainer.innerHTML = '<div class="flex justify-center"><div class="loading-spinner"></div></div>';
+            
+            const requestsRef = ref(db, 'requests');
+            onValue(requestsRef, (snapshot) => {
+                userRequestsContainer.innerHTML = '';
+                let hasRequests = false;
+                
+                // Convertir snapshot a array para ordenar
+                const requestsArray = [];
+                snapshot.forEach((childSnapshot) => {
+                    if (childSnapshot.val().userId === userId) {
+                        requestsArray.push({
+                            id: childSnapshot.key,
+                            ...childSnapshot.val()
+                        });
+                    }
+                });
+                
+                // Ordenar por fecha de solicitud (más recientes primero)
+                requestsArray.sort((a, b) => {
+                    const dateA = a.submittedAt ? new Date(a.submittedAt) : new Date(0);
+                    const dateB = b.submittedAt ? new Date(b.submittedAt) : new Date(0);
+                    return dateB - dateA;
+                });
+                
+                if (requestsArray.length > 0) {
+                    requestsArray.forEach(request => {
+                        const requestElement = createRequestCard(request, 'user');
+                        userRequestsContainer.appendChild(requestElement);
+                        hasRequests = true;
+                    });
+                }
+                
+                if (!hasRequests) {
+                    userRequestsContainer.innerHTML = `
+                        <div class="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <i class="fas fa-info-circle text-blue-500 text-2xl mb-2"></i>
+                            <p class="text-gray-600">No tienes solicitudes activas.</p>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function loadAdminRequests() {
+            adminRequestsContainer.innerHTML = '<div class="flex justify-center"><div class="loading-spinner"></div></div>';
+            
+            const requestsRef = ref(db, 'requests');
+            onValue(requestsRef, (snapshot) => {
+                adminRequestsContainer.innerHTML = '';
+                
+                // Convertir snapshot a array para ordenar
+                const requestsArray = [];
+                snapshot.forEach((childSnapshot) => {
+                    requestsArray.push({
+                        id: childSnapshot.key,
+                        ...childSnapshot.val()
+                    });
+                });
+                
+                // Ordenar: primero pendientes, luego por fecha más reciente
+                requestsArray.sort((a, b) => {
+                    // Priorizar solicitudes pendientes
+                    if (a.status === 'pending' && b.status !== 'pending') return -1;
+                    if (a.status !== 'pending' && b.status === 'pending') return 1;
+                    
+                    // Luego priorizar solicitudes en proceso
+                    if ((a.status === 'approved' || a.status === 'in_use') && 
+                        (b.status !== 'approved' && b.status !== 'in_use')) return -1;
+                    if ((a.status !== 'approved' && a.status !== 'in_use') && 
+                        (b.status === 'approved' || b.status === 'in_use')) return 1;
+                    
+                    // Finalmente ordenar por fecha (más reciente primero)
+                    const dateA = a.submittedAt ? new Date(a.submittedAt) : new Date(0);
+                    const dateB = b.submittedAt ? new Date(b.submittedAt) : new Date(0);
+                    return dateB - dateA;
+                });
+                
+                if (requestsArray.length > 0) {
+                    requestsArray.forEach(request => {
+                        const requestElement = createRequestCard(request, 'admin');
+                        adminRequestsContainer.appendChild(requestElement);
+                    });
+                } else {
+                    adminRequestsContainer.innerHTML = `
+                        <div class="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <i class="fas fa-info-circle text-blue-500 text-2xl mb-2"></i>
+                            <p class="text-gray-600">No hay solicitudes para revisar.</p>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function createRequestCard(request, userType) {
+            const card = document.createElement('div');
+            card.className = `bg-white p-5 rounded-lg shadow border border-gray-200 mb-4 ${request.status === 'pending' ? 'border-l-4 border-l-yellow-500' : 
+                                request.status === 'approved' ? 'border-l-4 border-l-blue-500' : 
+                                request.status === 'in_use' ? 'border-l-4 border-l-green-500' : 
+                                request.status === 'returned' ? 'border-l-4 border-l-purple-500' : 
+                                request.status === 'rejected' ? 'border-l-4 border-l-red-500' : 
+                                request.status === 'completed' ? 'border-l-4 border-l-gray-500' : ''}`;
+            
+            // Formatear fechas y horas
+            const formattedDate = formatDate(request.requestDate);
+            const submittedDate = request.submittedAt ? formatDateTime(new Date(request.submittedAt)) : 'N/A';
+            
+            // Determinar la clase y texto del estado
+            let statusBadgeClass = 'badge-pending';
+            let statusText = 'Pendiente';
+            let statusIcon = 'clock';
+
+            switch(request.status) {
+                case 'approved': 
+                    statusBadgeClass = 'badge-approved'; 
+                    statusText = 'Aprobada'; 
+                    statusIcon = 'check';
+                    break;
+                case 'rejected': 
+                    statusBadgeClass = 'badge-rejected'; 
+                    statusText = 'Rechazada'; 
+                    statusIcon = 'times';
+                    break;
+                case 'in_use': 
+                    statusBadgeClass = 'badge-in-use'; 
+                    statusText = 'En Uso'; 
+                    statusIcon = 'sync';
+                    break;
+                case 'returned': 
+                    statusBadgeClass = 'badge-returned'; 
+                    statusText = 'Devuelta (Pend. Conf.)'; 
+                    statusIcon = 'undo';
+                    break;
+                case 'completed': 
+                    statusBadgeClass = 'badge-completed'; 
+                    statusText = 'Completada'; 
+                    statusIcon = 'check-double';
+                    break;
+            }
+            
+            // Información del usuario (solo visible para administradores)
+            let userInfoHtml = '';
+            if (userType === 'admin') {
+                userInfoHtml = `
+                    <div class="border-b pb-2 mb-3">
+                        <p class="text-sm font-medium">
+                            <i class="fas fa-user text-gray-500 mr-1"></i> 
+                            <span class="text-gray-900">${request.userName || request.userEmail}</span>
+                        </p>
+                        <p class="text-sm text-gray-600">
+                            <i class="fas fa-building text-gray-500 mr-1"></i> 
+                            ${request.department || 'Departamento no especificado'}
+                        </p>
+                    </div>
+                `;
+            }
+            
+            // Estructura básica de la tarjeta
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <h4 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-calendar-day text-blue-500 mr-1"></i> ${formattedDate}
+                    </h4>
+                    <span class="badge ${statusBadgeClass}">
+                        <i class="fas fa-${statusIcon} mr-1"></i> ${statusText}
+                    </span>
+                </div>
+                
+                ${userInfoHtml}
+                
+                <div class="mt-1">
+                    <p class="text-sm text-gray-600">
+                        <i class="fas fa-clock text-gray-500 mr-1"></i> 
+                        <strong>Horario:</strong> ${request.startTime || '00:00'} - ${request.endTime || '00:00'}
+                    </p>
+                    <p class="text-sm text-gray-600 mt-1">
+                        <i class="fas fa-comment-alt text-gray-500 mr-1"></i> 
+                        <strong>Motivo:</strong> ${request.requestReason || 'No especificado'}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-paper-plane text-gray-400 mr-1"></i> 
+                        Enviada el ${submittedDate}
+                    </p>
+                </div>
+                
+                <div class="flex flex-wrap space-x-2 mt-3 image-previews">
+                    ${request.pickupPhotoUrl ? 
+                        `<button data-url="${request.pickupPhotoUrl}" data-title="Foto de Recogida" data-comment="${request.pickupComment || ''}" class="view-image-btn flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200">
+                            <i class="fas fa-image mr-1"></i> Ver Foto Recogida
+                        </button>` : ''}
+                    ${request.returnPhotoUrl ? 
+                        `<button data-url="${request.returnPhotoUrl}" data-title="Foto de Devolución" data-comment="${request.returnComment || ''}" class="view-image-btn flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200">
+                            <i class="fas fa-image mr-1"></i> Ver Foto Devolución
+                        </button>` : ''}
+                </div>
+                
+                <div class="flex flex-wrap gap-2 mt-3 actions"></div>
+            `;
+            
+            // Agregar acciones según el estado y rol
+            const actionsContainer = card.querySelector('.actions');
+            
+            if (userType === 'user') {
+                // Acciones para usuarios
+                if (request.status === 'approved' && !request.pickupPhotoUrl) {
+                    addButton(actionsContainer, 'Registrar Recepción', 'camera', 'bg-green-600 hover:bg-green-700', 
+                        () => openImageUploadModal(request.id, 'pickup', 'Registrar Recepción de Abrillantadora'));
+                }
+                if (request.status === 'in_use' && !request.returnPhotoUrl) {
+                    addButton(actionsContainer, 'Registrar Devolución', 'undo', 'bg-purple-600 hover:bg-purple-700', 
+                        () => openImageUploadModal(request.id, 'return', 'Registrar Devolución de Abrillantadora'));
+                }
+            } else if (userType === 'admin') {
+                // Acciones para administradores
+                if (request.status === 'pending') {
+                    addButton(actionsContainer, 'Aprobar', 'check', 'bg-green-600 hover:bg-green-700', 
+                        () => updateRequestStatus(request.id, 'approved'));
+                    addButton(actionsContainer, 'Rechazar', 'times', 'bg-red-600 hover:bg-red-700', 
+                        () => updateRequestStatus(request.id, 'rejected'));
+                }
+                if (request.status === 'approved' && request.pickupPhotoUrl) {
+                    addButton(actionsContainer, 'Confirmar Recepción', 'clipboard-check', 'bg-blue-600 hover:bg-blue-700', 
+                        () => updateRequestStatus(request.id, 'in_use'));
+                }
+                if (request.status === 'returned' && request.returnPhotoUrl) {
+                    addButton(actionsContainer, 'Confirmar Devolución', 'check-double', 'bg-green-600 hover:bg-green-700', 
+                        () => updateRequestStatus(request.id, 'completed'));
+                }
+            }
+            
+            // Agregar event listeners para los botones de visualización de imágenes
+            card.querySelectorAll('.view-image-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    openImageViewModal(button.dataset.url, button.dataset.title, button.dataset.comment);
+                });
+            });
+            
+            return card;
+        }
+        
+        function addButton(container, text, icon, classes, clickHandler) {
+            const button = document.createElement('button');
+            button.className = `py-1 px-2 rounded text-white text-sm flex items-center ${classes}`;
+            button.innerHTML = `<i class="fas fa-${icon} mr-1"></i> ${text}`;
+            button.addEventListener('click', clickHandler);
+            container.appendChild(button);
+            return button;
+        }
+
+        function updateRequestStatus(requestId, newStatus) {
+            showLoading();
+            
+            const updates = {
+                status: newStatus,
+                lastUpdated: serverTimestamp()
+            };
+            
+            update(ref(db, `requests/${requestId}`), updates)
+                .then(() => {
+                    const statusText = newStatus === 'approved' ? 'aprobada' :
+                                      newStatus === 'rejected' ? 'rechazada' :
+                                      newStatus === 'in_use' ? 'confirmada en uso' :
+                                      newStatus === 'returned' ? 'marcada como devuelta' :
+                                      newStatus === 'completed' ? 'completada' : newStatus;
+                    
+                    showNotification(`Solicitud ${statusText} correctamente`, 'success');
+                })
+                .catch(error => {
+                    console.error("Error al actualizar estado:", error);
+                    showNotification('Error al actualizar estado: ' + error.message, 'error');
+                })
+                .finally(hideLoading);
+        }
+
+        // Image Upload Modal Logic
+        function openImageUploadModal(requestId, type, title) {
+            uploadRequestIdInput.value = requestId;
+            uploadTypeInput.value = type;
+            modalTitle.textContent = title;
+            imagePreview.classList.add('hidden');
+            imagePreview.src = '#';
+            commentTextInput.value = '';
+            imageUploadForm.reset();
+            imageUploadModal.style.display = 'block';
+        }
+
+        closeModalButton.onclick = () => {
+            imageUploadModal.style.display = 'none';
+        }
+        
+        imageFileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.classList.add('hidden');
+                imagePreview.src = '#';
+            }
+        });
+
+        imageUploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading();
+            
+            const requestId = uploadRequestIdInput.value;
+            const type = uploadTypeInput.value;
+            const comment = commentTextInput.value;
+            const file = imageFileInput.files[0];
+
+            if (!file) {
+                showNotification('Por favor, selecciona una imagen', 'warning');
+                hideLoading();
+                return;
+            }
+
+            try {
+                // Crear ruta para la imagen en Storage
+                const photoPath = `abrillantadora_fotos/${requestId}/${type}_${Date.now()}_${file.name}`;
+                const imageRef = storageRef(storage, photoPath);
+                
+                // Subir imagen
+                const snapshot = await uploadBytes(imageRef, file);
+                const downloadURL = await getDownloadURL(snapshot.ref);
+                
+                // Actualizar base de datos
+                const updates = {};
+                if (type === 'pickup') {
+                    updates.pickupPhotoUrl = downloadURL;
+                    updates.pickupComment = comment;
+                    updates.status = 'in_use'; // Cambia estado a "en uso" automáticamente
+                } else if (type === 'return') {
+                    updates.returnPhotoUrl = downloadURL;
+                    updates.returnComment = comment;
+                    updates.status = 'returned'; // Cambia estado a "devuelto" (pendiente confirmación)
+                }
+                updates.lastUpdated = serverTimestamp();
+                
+                await update(ref(db, `requests/${requestId}`), updates);
+                
+                showNotification('Imagen subida correctamente', 'success');
+                imageUploadModal.style.display = 'none';
+                
+                // Recargar listas
+                if (isAdmin) {
+                    loadAdminRequests();
+                } else {
+                    loadUserRequests(currentUser.uid);
+                }
+            } catch (error) {
+                console.error("Error al subir imagen:", error);
+                showNotification('Error al subir imagen: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Image View Modal Logic
+        function openImageViewModal(imageUrl, title, comment) {
+            imageViewModalTitle.textContent = title;
+            imageViewModalImage.src = imageUrl;
+            imageViewModalComment.textContent = comment || '';
+            imageViewModal.style.display = 'block';
+        }
+
+        closeImageViewModalButton.onclick = () => {
+            imageViewModal.style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === imageUploadModal) {
+                imageUploadModal.style.display = 'none';
+            }
+            if (event.target === imageViewModal) {
+                imageViewModal.style.display = 'none';
+            }
+        });
+
+        // Utility Functions
+        function formatDate(dateString) {
+            if (!dateString) return 'Fecha no disponible';
+            
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('es-ES', options);
+        }
+        
+        function formatDateTime(date) {
+            if (!date) return 'Fecha no disponible';
+            
+            const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return date.toLocaleDateString('es-ES', options);
+        }
+    </script>
+</body>
+</html>
